@@ -74,6 +74,26 @@ if test x"$upstream_enabled" = x"yes"; then
     AC_DEFINE(UPSTREAM_SUPPORT)
 fi
 
+dnl Include support for clientmode?
+AH_TEMPLATE([CLIENT_MODE],
+            [Include support for client mode.])
+TP_ARG_ENABLE(clientmode,
+              [Enable client mode (default is NO)],
+              no)
+if test x"$clientmode_enabled" = x"yes"; then
+    AC_DEFINE(CLIENT_MODE)
+fi
+
+dnl Include support for servermode?
+AH_TEMPLATE([SERVER_MODE],
+            [Include support for server mode.])
+TP_ARG_ENABLE(servermode,
+              [Enable server mode (default is NO)],
+              no)
+if test x"$servermode_enabled" = x"yes"; then
+    AC_DEFINE(SERVER_MODE)
+fi
+
 dnl Include support for reverse proxy?
 AH_TEMPLATE([REVERSE_SUPPORT],
             [Include support for reverse proxy.])

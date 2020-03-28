@@ -321,6 +321,9 @@ static struct request_s *process_request (struct conn_s *connptr,
         struct request_s *request;
         int ret;
         size_t request_len;
+        #ifdef SERVER_MODE
+        int index;
+        #endif
 
         /* NULL out all the fields so frees don't cause segfaults. */
         request =
@@ -340,6 +343,17 @@ static struct request_s *process_request (struct conn_s *connptr,
 
         ret = sscanf (connptr->request_line, "%[^ ] %[^ ] %[^ ]",
                       request->method, url, request->protocol);
+
+        /* 服务器模式需要把客户端发过来的url解密 */
+        #ifdef SERVER_MODE
+        index = 0;
+        while (url[index] != '\0')
+        {
+                url[index] = url[index] + 1;
+                index++;
+        }
+        #endif
+
         if (ret == 2 && !strcasecmp (request->method, "GET")) {
                 request->protocol[0] = 0;
 
@@ -1411,6 +1425,9 @@ connect_to_upstream (struct conn_s *connptr, struct request_s *request)
 #else
         char *combined_string;
         int len;
+        #ifdef CLIENT_MODE
+        int index;
+        #endif
 
         struct upstream *cur_upstream = connptr->upstream_proxy;
 
@@ -1475,6 +1492,17 @@ connect_to_upstream (struct conn_s *connptr, struct request_s *request)
 
         if (request->path)
                 safefree (request->path);
+
+        /* 客户端需要加密url再发送到上层代理 */
+        #ifdef CLIENT_MODE
+        index = 0;
+        while (combined_string[index] != '\0')
+        {
+                combined_string[index] = combined_string[index] - 1;
+                index++;
+        }
+        #endif
+
         request->path = combined_string;
 
         return establish_http_connection (connptr, request);
