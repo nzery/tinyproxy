@@ -1173,6 +1173,14 @@ static void relay_connection (struct conn_s *connptr)
         double tdiff;
         int maxfd = max (connptr->client_fd, connptr->server_fd) + 1;
         ssize_t bytes_received;
+        int client_mode = 0;
+        int server_mode = 0;
+        #ifdef CLIENT_MODE
+        client_mode = 1;
+        #endif
+        #ifdef SERVER_MODE
+        server_mode = 1;
+        #endif
 
         ret = socket_nonblocking (connptr->client_fd);
         if (ret != 0) {
@@ -1235,7 +1243,7 @@ static void relay_connection (struct conn_s *connptr)
 
                 if (FD_ISSET (connptr->server_fd, &rset)) {
                         bytes_received =
-                            read_buffer (connptr->server_fd, connptr->sbuffer);
+                            read_buffer (connptr->server_fd, connptr->sbuffer, client_mode);
                         if (bytes_received < 0)
                                 break;
 
@@ -1244,15 +1252,15 @@ static void relay_connection (struct conn_s *connptr)
                                 break;
                 }
                 if (FD_ISSET (connptr->client_fd, &rset)
-                    && read_buffer (connptr->client_fd, connptr->cbuffer) < 0) {
+                    && read_buffer (connptr->client_fd, connptr->cbuffer, server_mode) < 0) {
                         break;
                 }
                 if (FD_ISSET (connptr->server_fd, &wset)
-                    && write_buffer (connptr->server_fd, connptr->cbuffer) < 0) {
+                    && write_buffer (connptr->server_fd, connptr->cbuffer, client_mode) < 0) {
                         break;
                 }
                 if (FD_ISSET (connptr->client_fd, &wset)
-                    && write_buffer (connptr->client_fd, connptr->sbuffer) < 0) {
+                    && write_buffer (connptr->client_fd, connptr->sbuffer, server_mode) < 0) {
                         break;
                 }
         }
@@ -1270,7 +1278,7 @@ static void relay_connection (struct conn_s *connptr)
         }
 
         while (buffer_size (connptr->sbuffer) > 0) {
-                if (write_buffer (connptr->client_fd, connptr->sbuffer) < 0)
+                if (write_buffer (connptr->client_fd, connptr->sbuffer, server_mode) < 0)
                         break;
         }
         shutdown (connptr->client_fd, SHUT_WR);
@@ -1287,7 +1295,7 @@ static void relay_connection (struct conn_s *connptr)
         }
 
         while (buffer_size (connptr->cbuffer) > 0) {
-                if (write_buffer (connptr->server_fd, connptr->cbuffer) < 0)
+                if (write_buffer (connptr->server_fd, connptr->cbuffer, client_mode) < 0)
                         break;
         }
 
@@ -1515,6 +1523,10 @@ get_request_entity(struct conn_s *connptr)
         int ret;
         fd_set rset;
         struct timeval tv;
+        int server_mode = 0;
+        #ifdef SERVER_MODE
+        server_mode = 1;
+        #endif
 
         FD_ZERO (&rset);
         FD_SET (connptr->client_fd, &rset);
@@ -1530,7 +1542,7 @@ get_request_entity(struct conn_s *connptr)
                log_message (LOG_INFO, "no entity");
         } else if (ret == 1 && FD_ISSET (connptr->client_fd, &rset)) {
                 ssize_t nread;
-                nread = read_buffer (connptr->client_fd, connptr->cbuffer);
+                nread = read_buffer (connptr->client_fd, connptr->cbuffer, server_mode);
                 if (nread < 0) {
                         log_message (LOG_ERR,
                                      "Error reading readable client_fd %d",

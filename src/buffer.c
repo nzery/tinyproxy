@@ -209,10 +209,11 @@ static struct bufline_s *remove_from_buffer (struct buffer_s *buffptr)
  * Takes a connection and returns the number of bytes read.
  */
 #define READ_BUFFER_SIZE (1024 * 2)
-ssize_t read_buffer (int fd, struct buffer_s * buffptr)
+ssize_t read_buffer (int fd, struct buffer_s * buffptr, int decrypt)
 {
         ssize_t bytesin;
         unsigned char *buffer;
+        int i;
 
         assert (fd >= 0);
         assert (buffptr != NULL);
@@ -231,6 +232,11 @@ ssize_t read_buffer (int fd, struct buffer_s * buffptr)
         bytesin = read (fd, buffer, READ_BUFFER_SIZE);
 
         if (bytesin > 0) {
+                if(decrypt == 1){
+                        for(i = 0; i < bytesin; i++){
+                                buffer[i] = buffer[i] ^ 17;
+                        }
+                }
                 if (add_to_buffer (buffptr, buffer, bytesin) < 0) {
                         log_message (LOG_ERR,
                                      "readbuff: add_to_buffer() error.");
@@ -268,10 +274,12 @@ ssize_t read_buffer (int fd, struct buffer_s * buffptr)
  * Write the bytes in the buffer to the socket.
  * Takes a connection and returns the number of bytes written.
  */
-ssize_t write_buffer (int fd, struct buffer_s * buffptr)
+ssize_t write_buffer (int fd, struct buffer_s * buffptr, int encrypt)
 {
         ssize_t bytessent;
         struct bufline_s *line;
+        unsigned char *sendbuffer;
+        int i;
 
         assert (fd >= 0);
         assert (buffptr != NULL);
@@ -282,9 +290,15 @@ ssize_t write_buffer (int fd, struct buffer_s * buffptr)
         /* Sanity check. It would be bad to be using a NULL pointer! */
         assert (BUFFER_HEAD (buffptr) != NULL);
         line = BUFFER_HEAD (buffptr);
-
+        sendbuffer = line->string + line->pos;
+        bytessent = line->length - line->pos;
+        if(encrypt == 1){
+                for(i = 0; i < bytessent; i++){
+                        sendbuffer[i] = sendbuffer[i] ^ 17;
+                }
+        }
         bytessent =
-            send (fd, line->string + line->pos, line->length - line->pos,
+            send (fd, sendbuffer, bytessent,
                   MSG_NOSIGNAL);
 
         if (bytessent >= 0) {
